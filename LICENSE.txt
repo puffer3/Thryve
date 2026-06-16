@@ -1,0 +1,6 @@
+Thryve
+Copyright (c) 2026 Henry Glover. All rights reserved.
+
+This software and its source code are proprietary. No part of this
+repository may be copied, modified, distributed, sold, or used to create
+derivative works without the express written permission of the copyright holder.
