@@ -535,6 +535,10 @@
     background: #fff !important; border: 1.5px solid #9cc0e0 !important; border-radius: 4px !important;
     padding: 3px 7px !important; color: var(--ink) !important;
   }
+  /* edit-mode plant-name search icon - opens the searchable plant picker */
+  .tk-name-search { display: inline-flex; align-items: center; justify-content: center; background: #fff; border: 1.5px solid #9cc0e0; border-radius: 5px; padding: 3px; margin-left: -4px; cursor: pointer; color: #2a6496; }
+  .tk-name-search:hover { background: #eaf2fb; }
+  .tk-name-search svg { width: 14px; height: 14px; display: block; }
   /* edit-mode pod button - opens the move-plant pod picker */
   .pod-move-btn { font-family: 'Jost', sans-serif; font-size: 0.85rem; font-weight: 700; color: #2a6496; background: #fff; border: 1.5px solid #9cc0e0; border-radius: 5px; padding: 2px 9px; min-width: 28px; cursor: pointer; }
   .pod-move-btn:hover { background: #eaf2fb; }
@@ -955,6 +959,8 @@
   <path fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M730.59,2399.64l15.26,15.26,50.87-50.87"/></symbol>
 <symbol id="ic-unlock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-1.9"/></g></symbol>
 <symbol id="ic-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></g></symbol>
+<symbol id="ic-swap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M14 5l3 3-3 3"/><path d="M20 16H7M10 13l-3 3 3 3"/></g></symbol>
+<symbol id="ic-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></g></symbol>
 <symbol id="ic-info" viewBox="944.40 2350.95 126.18 126.18"><path fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M1003.91,2436.03c-11.04.03-20.01-8.89-20.04-19.92-.03-9.76,7-18.12,16.62-19.76,16.27-3.14,20.55-4.62,26.26-11.7,2.85,5.71,5.71,11.93,5.71,22.84,0,15.7-13.65,28.55-28.55,28.55Z"/>
   <path fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M978.22,2438.89c0-8.56,5.28-15.3,14.5-17.13,6.91-1.37,14.05-5.71,16.9-8.56"/>
   <circle fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" cx="1007.49" cy="2414.04" r="50.88"/></symbol>
@@ -1020,6 +1026,15 @@
       .layout-img-wrap > img { position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;pointer-events:none; }
       select.pod-filled { background:rgba(190,222,180,0.45) !important; color:#2f5a2f !important; font-weight:600; }
       .layout-img-wrap select:not(.pod-filled) { color:#9aa39a !important; }
+      /* swap button: match the lock button's compact icon layout */
+      .layout-btn.swap-toggle { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-width:96px; }
+      .layout-btn.swap-toggle .lock-ico { width:13px; height:13px; flex-shrink:0; }
+      .swap-toggle.swapping { background:#d9482f !important; border-color:#b5301a !important; color:#fff !important; }
+      /* swap mode: red capsule rings traced over the black pod outlines (JS-positioned overlays) */
+      body.swap-mode .layout-img-wrap select[id^="pod-"] { cursor:pointer; }
+      .swap-ov { position:absolute; border-radius:999px; pointer-events:none; box-shadow:0 0 0 1px rgba(217,72,47,0.4), inset 0 0 0 1px rgba(217,72,47,0.4); }
+      .swap-ov.filled { box-shadow:0 0 0 1.25px #d9482f, inset 0 0 0 1.25px #d9482f; }
+      .swap-ov.picked { box-shadow:0 0 0 1.75px #b5301a, inset 0 0 0 1.75px #b5301a, 0 0 9px rgba(181,48,26,0.55); }
       .res-grid { position:absolute; left:3.14%; top:88.18%; width:93.73%; height:10.61%; display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows:1fr 1fr; gap:4px; padding:4px 6px; }
       .rc { display:flex;flex-direction:column;justify-content:center;padding:3px 6px;background:rgba(210,235,225,0.88);border-radius:10px;overflow:hidden; }
       .rc b { font-family:'Jost',sans-serif;font-size:clamp(0.36rem,0.68vw,0.5rem);letter-spacing:0.06em;text-transform:uppercase;color:#4a6b52;line-height:1.1;display:block; }
@@ -5025,6 +5040,7 @@
     </div>
       <div class="layout-actions">
         <button class="layout-btn lock lock-toggle" onclick="toggleLock()"><svg class="lock-ico"><use href="#ic-unlock" class="lock-use"></use></svg><span class="lock-txt">Unlocked</span></button>
+        <button class="layout-btn swap-toggle" id="swap-btn" onclick="toggleSwap()" title="Move a plant to another pod: tap a red pod, then tap where it should go."><svg class="lock-ico"><use href="#ic-swap"></use></svg><span class="swap-txt">Swap Plants</span></button>
         <button class="layout-btn danger" id="clear-btn" onclick="clearLayout()">Clear</button>
         <button class="layout-btn" onclick="triggerLoadLayout()">Load</button>
         <button class="layout-btn primary" onclick="saveLayout()">Save</button>
@@ -7059,6 +7075,117 @@
     document.querySelectorAll('#tracker-cards select, #tracker-cards input, #tracker-cards button').forEach(function(b){ b.disabled = podsLocked; });
     var sowI = document.getElementById('sow-input'); if (sowI) sowI.disabled = podsLocked;
   }
+
+  // ── SWAP MODE: move/swap a plant between pods ──
+  // Tap a planted (red-outlined) pod, then tap a destination pod. If the
+  // destination is empty the plant moves; if it's planted, the two swap.
+  var swapMode = false, swapFirst = null;
+  function toggleSwap() {
+    swapMode = !swapMode;
+    swapFirst = null;
+    document.body.classList.toggle('swap-mode', swapMode);
+    var btn = document.getElementById('swap-btn');
+    if (btn) { btn.classList.toggle('swapping', swapMode); var t = btn.querySelector('.swap-txt'); if (t) t.textContent = swapMode ? 'Done' : 'Swap Plants'; }
+    // enable the pod selects so they receive clicks even while locked; restore on exit
+    for (var i = 1; i <= 30; i++) {
+      var s = document.getElementById('pod-' + i);
+      if (!s) continue;
+      if (swapMode) s.disabled = false; else s.classList.remove('swap-pick');
+    }
+    if (swapMode) buildSwapOverlays(); else { removeSwapOverlays(); applyLock(); }
+  }
+  // Red capsule rings, positioned to trace the black pod outlines. The pod
+  // capsule sits centered on its <select> wrapper, ~3.53% tall and ~1.3% wider
+  // than the wrapper (measured from the tower art). pointer-events:none so taps
+  // still reach the pod underneath.
+  var _swapOverlays = [];
+  function buildSwapOverlays() {
+    removeSwapOverlays();
+    var wrap = document.querySelector('.layout-img-wrap'); if (!wrap) return;
+    var CAP_H = 3.53, EXTRA_W = 1.3;
+    for (var i = 1; i <= 30; i++) {
+      var sel = document.getElementById('pod-' + i); if (!sel) continue;
+      var box = sel.parentNode; if (!box) continue;
+      var l = parseFloat(box.style.left), t = parseFloat(box.style.top), w = parseFloat(box.style.width), h = parseFloat(box.style.height);
+      if (isNaN(l) || isNaN(t) || isNaN(w) || isNaN(h)) continue;
+      var ov = document.createElement('div');
+      ov.className = 'swap-ov';
+      ov.setAttribute('data-pod', i);
+      ov.style.left = (l - EXTRA_W / 2) + '%';
+      ov.style.top = (t + h / 2 - CAP_H / 2) + '%';
+      ov.style.width = (w + EXTRA_W) + '%';
+      ov.style.height = CAP_H + '%';
+      wrap.appendChild(ov);
+      _swapOverlays.push(ov);
+    }
+    refreshSwapOverlays();
+  }
+  function refreshSwapOverlays() {
+    _swapOverlays.forEach(function(ov) {
+      var id = 'pod-' + ov.getAttribute('data-pod');
+      ov.classList.toggle('filled', !!(typeof layoutData !== 'undefined' && layoutData[id]));
+      ov.classList.toggle('picked', swapFirst === id);
+    });
+  }
+  function removeSwapOverlays() {
+    _swapOverlays.forEach(function(o) { if (o.parentNode) o.parentNode.removeChild(o); });
+    _swapOverlays = [];
+  }
+  // capture clicks on pods while in swap mode (stops the native dropdown opening)
+  document.addEventListener('mousedown', function(e) {
+    if (!swapMode) return;
+    var sel = e.target.closest && e.target.closest('.layout-img-wrap select[id^="pod-"]');
+    if (sel) e.preventDefault();
+  }, true);
+  document.addEventListener('click', function(e) {
+    if (!swapMode) return;
+    var sel = e.target.closest && e.target.closest('.layout-img-wrap select[id^="pod-"]');
+    if (!sel) return;
+    e.preventDefault(); e.stopPropagation();
+    handleSwapClick(sel.id);
+  }, true);
+  function handleSwapClick(id) {
+    var name = (typeof layoutData !== 'undefined' && layoutData[id]) || '';
+    if (!swapFirst) {
+      if (!name) return;                       // must start from a planted pod
+      swapFirst = id; refreshSwapOverlays();
+      return;
+    }
+    if (id === swapFirst) { swapFirst = null; refreshSwapOverlays(); return; }   // tapped same pod → cancel
+    swapPods(swapFirst, id);
+    swapFirst = null;
+    refreshSwapOverlays();
+  }
+  // write a plant name onto a pod (clearing it if name is empty), keeping the
+  // <select>, its option, pod-filled class and layoutData all in sync.
+  function setPodPlant(id, name) {
+    var sel = document.getElementById(id); if (!sel) return;
+    if (!name) { sel.value = ''; sel.classList.remove('pod-filled'); if (typeof layoutData !== 'undefined') layoutData[id] = ''; return; }
+    var has = false;
+    for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value === name) { has = true; break; } }
+    if (!has && typeof ensurePodOption === 'function') ensurePodOption(sel, name);
+    sel.value = name; sel.classList.add('pod-filled');
+    if (typeof layoutData !== 'undefined') layoutData[id] = name;
+  }
+  function swapPods(idA, idB) {
+    var numA = idA.replace('pod-', ''), numB = idB.replace('pod-', '');
+    var nameA = (layoutData[idA] || ''), nameB = (layoutData[idB] || '');
+    if (nameA === nameB) return;
+    // re-point the tracker records (capture both before mutating to avoid clashes)
+    var recA = null, recB = null;
+    trackerPlants.forEach(function(p) {
+      if (!p.fromLayout) return;
+      if (!recA && p.pod === numA && p.name === nameA) recA = p;
+      else if (!recB && p.pod === numB && p.name === nameB) recB = p;
+    });
+    if (recA) recA.pod = numB;
+    if (recB) recB.pod = numA;
+    setPodPlant(idA, nameB);
+    setPodPlant(idB, nameA);
+    if (typeof renderTracker === 'function') renderTracker();
+    if (typeof autosave === 'function') autosave();
+  }
+
   // ── UNIFIED STATE (layout + tracker + notes) ──
   var STORAGE_KEY = 'thryve-state-v1';
 
@@ -7716,9 +7843,10 @@
               ? '<button class="pod-move-btn" onclick="openMovePlant(' + p.id + ')" title="Move to another pod">' + ((p.pod && p.pod !== '·') ? p.pod : '+') + '</button>'
               : '<span style="font-size:0.85rem;font-weight:600;color:var(--ink);min-width:18px;text-align:center;display:inline-block;">' + (p.pod || '·') + '</span>')
           + '<span style="color:var(--divider);">|</span>'
-          + '<select onchange="editField(' + p.id + ',\'name\',this.value)" style="border:none;background:transparent;font-size:0.9rem;font-weight:600;color:var(--ink);cursor:pointer;max-width:180px;">'
-            + plantOpts
-          + '</select>'
+          + (p.id === editCardId
+              ? '<select onchange="editField(' + p.id + ',\'name\',this.value)" style="border:none;background:transparent;font-size:0.9rem;font-weight:600;color:var(--ink);cursor:pointer;max-width:180px;">' + plantOpts + '</select>'
+                + '<button class="tk-name-search" onclick="openLedgerPlantSearch(' + p.id + ')" title="Search plants"><svg viewBox="0 0 24 24"><use href="#ic-search"></use></svg></button>'
+              : '<span style="font-size:0.9rem;font-weight:600;color:var(--ink);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + p.name + '</span>')
           + '<span style="color:var(--divider);">|</span>'
           + '<input type="date" value="' + p.date + '" onchange="editField(' + p.id + ',\'date\',this.value)" style="border:none;background:transparent;font-size:0.8rem;color:var(--muted);cursor:pointer;">'
           + '<span style="color:var(--divider);">|</span>'
@@ -7849,6 +7977,44 @@
     });
     renderTracker();
   }
+
+  // Ledger plant-name search — reuses the seedpod searcher (exposed as __plantSearch).
+  // Only reachable from a card in edit mode.
+  function openLedgerPlantSearch(id) {
+    if (typeof window.__plantSearch !== 'function') return;
+    var p = null; trackerPlants.forEach(function(t){ if (t.id === id) p = t; });
+    if (!p) return;
+    window.__plantSearch({
+      title: 'Change plant',
+      current: p.name,
+      onPick: function(name){ editField(id, 'name', name); },
+      onCustom: function(txt){
+        if (!txt) return;
+        if (typeof PLANT_DATA !== 'undefined' && !PLANT_DATA[txt]) {
+          PLANT_DATA[txt] = { s2sp:7, sp2h:28, gf:90, thin:1, ph:'6.0-7.0', light:'medium', pets:'Safe' };
+        }
+        editField(id, 'name', txt);
+      }
+    });
+  }
+
+  // Is this a user-added (custom) plant? Built-ins are curated, so their
+  // attributes stay read-only; customs can be edited.
+  window.__isCustomPlant = function(name){
+    return typeof BUILTIN_PLANT_KEYS !== 'undefined' && BUILTIN_PLANT_KEYS.indexOf(name) < 0;
+  };
+  // Edit a plant's shared attributes (light / pets / pH / grow-times). Writes to
+  // PLANT_DATA and mirrors the field onto any tower (tracker) plant of the same
+  // name, so a fix made from a sprout card also corrects the tower copy. Custom
+  // plant data persists via getState's customPlants.
+  window.__updatePlantData = function(name, field, value){
+    if (!name || typeof PLANT_DATA === 'undefined') return;
+    if (!PLANT_DATA[name]) PLANT_DATA[name] = { s2sp:7, sp2h:28, gf:90, thin:1, ph:'6.0-7.0', light:'medium', pets:'Safe' };
+    PLANT_DATA[name][field] = value;
+    trackerPlants.forEach(function(p){ if (p.name === name) p[field] = value; });
+    renderTracker();
+    if (typeof autosave === 'function') autosave();
+  };
 
   // ── STARTUP: restore autosaved state (layout + tracker + notes) ──
   // Capture the default (type-grouped) plant option list before any pod filtering.
@@ -8488,6 +8654,8 @@ window.__bdRender = render;
   };
   window.__psPick=function(name){ var o=_psState; close(); if(o&&o.onPick) o.onPick(name); };
   window.__psAddCustom=function(){ var qi=document.getElementById('ps-q'); var typed=qi?(qi.value||'').trim():''; var o=_psState; close(); if(o&&o.onCustom) o.onCustom(typed); };
+  // expose the searchable plant picker so the ledger (a separate script) can reuse it
+  window.__plantSearch=openPlantSearch;
 
   window.__spCellSearch=function(tid,r,c){ var s=inCell(tid,r,c);
     openPlantSearch({ title:'Seed this cell', current:s?s.name:'',
@@ -8560,6 +8728,15 @@ window.__bdRender = render;
     live.forEach(function(s){
       var d=pd(s.name), s2sp=d.s2sp||7, age=daysSince(s.date);
       var ldot=d.light==='high'?'#e8a020':d.light==='medium'?'#6aaa50':'#5a8abf', pc=d.pets==='Safe'?'#2d6a2d':'#b85c38';
+      var cust=(typeof window.__isCustomPlant==='function') && window.__isCustomPlant(s.name);
+      var s2spCell = cust
+        ? '<input type="number" min="1" max="60" value="'+s2sp+'" onchange="window.__spPlantAttr(\''+s.id+'\',\'s2sp\',this.value)" style="border:1px solid var(--divider);background:#fff;border-radius:4px;font-size:0.8rem;color:var(--ink);width:42px;font-family:Jost,sans-serif;padding:1px 3px;"> days'
+        : s2sp+' days';
+      var attrCell = cust
+        ? '<select onchange="window.__spPlantAttr(\''+s.id+'\',\'light\',this.value)" class="sp-attr"><option value="low"'+(d.light==='low'?' selected':'')+'>Low</option><option value="medium"'+(d.light==='medium'?' selected':'')+'>Med</option><option value="high"'+(d.light==='high'?' selected':'')+'>High</option></select>'
+          +' <select onchange="window.__spPlantAttr(\''+s.id+'\',\'pets\',this.value)" class="sp-attr"><option'+(d.pets==='Safe'?' selected':'')+'>Safe</option><option'+(d.pets==='Toxic'?' selected':'')+'>Toxic</option></select>'
+          +' <input type="text" value="'+d.ph+'" onchange="window.__spPlantAttr(\''+s.id+'\',\'ph\',this.value)" class="sp-attr" style="width:54px;" title="pH range" placeholder="pH">'
+        : '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+ldot+';margin-right:3px;vertical-align:middle;"></span>'+d.light+' · <span style="color:'+pc+';">'+d.pets+'</span> · pH '+d.ph;
       if(s.removed){
         if(s.transplanted){ html+='<div class="sp-tomb sp-tp" style="min-height:'+(s.remH||0)+'px"><span class="acc"></span><div class="sp-tb"><div class="eb">'+trayName(s.trayId)+' · R'+(s.r+1)+' C'+(s.c+1)+'</div><div class="hl">'+s.name+' <span>&rarr; Pod '+s.tpPod+'</span></div><div class="ph">Moved to the tracker . Undo to keep it in the tray.</div></div><button class="sp-undo" onclick="window.__spUndo(\''+s.id+'\')">Undo</button></div>'; return; }
         html+='<div class="sp-tomb" style="min-height:'+(s.remH||0)+'px"><span class="acc"></span><div class="sp-tb"><div class="eb">'+trayName(s.trayId)+' · R'+(s.r+1)+' C'+(s.c+1)+'</div><div class="hl">'+s.name+' <span>removed</span></div><div class="ph">Won\'t be saved . Undo to keep it.</div></div><button class="sp-undo" onclick="window.__spUndo(\''+s.id+'\')">Undo</button></div>'; return; }
@@ -8581,13 +8758,13 @@ window.__bdRender = render;
           '</span>'+
         '</div>'+
         '<div style="display:grid;grid-template-columns:repeat(4,1fr);">'+
-          gc(0,8,'Seed → Sprout',val,s2sp+' days')+
+          gc(0,8,'Seed → Sprout',val,s2spCell)+
           gc(1,8,(s.sprouted==='Yes'?'Sprout Date':'Expected Sprout'),valm,(s.sprouted==='Yes'?fmtD(s.sproutedOn||isoToday()):fmtD(addD(s.date,s2sp))))+
           gc(2,8,'Transplant By',valm,fmtD(addD(s.date,s2sp+7)))+
           gc(3,8,'In Tray',val,age+' days')+
           gc(4,8,'Tray',valm,trayName(s.trayId))+
           gc(5,8,'Seeds',val,'<input type="number" min="1" max="99" value="'+(s.seeds||1)+'" onchange="window.__spSeedsCard(\''+s.id+'\',this.value)" style="border:none;background:transparent;font-size:0.82rem;color:var(--ink);width:46px;font-family:Jost,sans-serif;">')+
-          gc(6,8,'Light · Pets · pH',valm,'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+ldot+';margin-right:3px;vertical-align:middle;"></span>'+d.light+' · <span style="color:'+pc+';">'+d.pets+'</span> · pH '+d.ph)+
+          gc(6,8,'Light · Pets · pH',valm,attrCell)+
           gc(7,8,'Notes',valm,'<input type="text" value="'+(s.notes||'')+'" placeholder="add notes…" onchange="window.__spNotes(\''+s.id+'\',this.value)" style="border:none;background:transparent;font-size:0.78rem;color:var(--muted);width:100%;font-family:Jost,sans-serif;">')+
         '</div></div>';
     });
@@ -8595,6 +8772,15 @@ window.__bdRender = render;
   }
   window.__spSeedsCard=function(id,v){ var s=byId(id); if(s){ s.seeds=Math.max(1,+v||1); save(); renderTrays(); renderCards(); } };
   window.__spNotes=function(id,v){ var s=byId(id); if(s){ s.notes=v; save(); } };
+  // edit a custom plant's shared attributes (light/pets/pH/seed→sprout) from its sprout card
+  window.__spPlantAttr=function(id,field,value){
+    var s=byId(id); if(!s) return;
+    if(field==='s2sp') value=Math.max(1,parseInt(value,10)||7);
+    else if(field==='ph') value=(value||'').trim()||'6.0-7.0';
+    if(typeof window.__updatePlantData==='function') window.__updatePlantData(s.name,field,value);
+    else { if(typeof PLANT_DATA!=='undefined'){ if(!PLANT_DATA[s.name]) PLANT_DATA[s.name]={s2sp:7,sp2h:28,gf:90,thin:1,ph:'6.0-7.0',light:'medium',pets:'Safe'}; PLANT_DATA[s.name][field]=value; } save(); }
+    renderTrays(); renderCards();
+  };
 
   /* keep the collapsible arrow in sync */
   document.addEventListener('DOMContentLoaded',function(){ if(window.__sproutState){ window.__sproutLoad(window.__sproutState); } else { renderTrays(); renderCards(); } });
@@ -8615,9 +8801,10 @@ window.__bdRender = render;
     '.sp-tray{background:#fff;border:1.5px solid var(--divider);border-radius:16px;padding:16px;}'+
     '.sp-tray.custom{background:#eceeec;border-color:#cbd2cb;}'+
     '.sp-tray.gardyn{background:#fff;border-color:var(--divider);}'+
-    '.sp-grid{display:grid;gap:10px;--spcw:80px;justify-content:center;}'+
-    '.sp-tray.gardyn .sp-grid{max-width:560px;margin:0 auto;}'+
-    '.sp-cell{position:relative;min-height:70px;border-radius:13px;border:1.5px dashed var(--divider);background:var(--cream);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;overflow:hidden;padding:6px 4px;text-align:center;}'+
+    '.sp-grid{display:grid;gap:8px;--spcw:1fr;}'+
+    '.sp-tray.gardyn .sp-grid{max-width:560px;margin:0 auto;gap:10px;}'+
+    '.sp-tray.custom .sp-grid{--spcw:108px;justify-content:center;}'+
+    '.sp-cell{position:relative;aspect-ratio:0.8;border-radius:13px;border:1.5px dashed var(--divider);background:var(--cream);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;overflow:hidden;padding:3px;text-align:center;}'+
     '.sp-cell-tp{position:absolute;top:0;left:50%;transform:translateX(-50%);border:none;background:transparent;color:#2d6a2d;font-size:.62rem;line-height:1;cursor:pointer;padding:1px 6px;opacity:.85;transition:opacity .12s ease,transform .12s ease;}'+
     '.sp-cell-tp:hover{opacity:1;transform:translateX(-50%) translateY(-1px);}'+
     '.sp-cell-x{position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);border:none;background:transparent;color:#b85c38;font-size:1.05rem;line-height:1;cursor:pointer;padding:0 6px;opacity:.5;transition:opacity .12s ease;}'+
@@ -8631,6 +8818,7 @@ window.__bdRender = render;
     '.sp-cell-pick.empty{color:var(--divider);font-size:1.1rem;font-weight:400;}'+
     '.sp-card-pick{border:none;background:transparent;font-size:.9rem;font-weight:600;color:var(--ink);cursor:pointer;max-width:170px;font-family:Jost,sans-serif;padding:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'+
     '.sp-card-caret{color:var(--muted);font-size:.7rem;}'+
+    '.sp-attr{border:1px solid var(--divider);background:#fff;border-radius:4px;font-family:Jost,sans-serif;font-size:.74rem;color:var(--ink);padding:1px 3px;vertical-align:middle;}'+
     '.ps-q{width:100%;box-sizing:border-box;font-family:inherit;font-size:.95rem;padding:11px 12px;border:1.5px solid var(--divider);border-radius:10px;background:#fff;color:var(--ink);}'+
     '.ps-q:focus{outline:none;border-color:#78b39c;}'+
     '.ps-list{max-height:46vh;overflow-y:auto;margin:12px 0;border:1px solid var(--divider);border-radius:10px;background:#fff;}'+
