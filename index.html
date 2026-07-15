@@ -5144,10 +5144,25 @@
   <div id="log" class="tab-panel">
     <div style="max-width:720px;margin:0 auto;padding:8px 0 60px;">
       <h2 style="font-family:Jost,sans-serif;font-weight:700;letter-spacing:.02em;margin:0 0 4px;">Grow Log</h2>
-      <p style="color:var(--muted);font-size:.82rem;margin:0 0 18px;">Automatic check-ins from your grow assistant, synced from the cloud every few hours.</p>
+      <p style="color:var(--muted);font-size:.82rem;margin:0 0 18px;">Ask your grow assistant, or read its automatic check-ins synced from the cloud.</p>
+      <div style="background:#fff;border:1.5px solid var(--divider);border-radius:14px;padding:16px;margin-bottom:22px;">
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <img id="ask-cam1" alt="Tower camera 1" style="width:50%;border-radius:8px;background:#eef0ec;aspect-ratio:4/3;object-fit:cover;">
+          <img id="ask-cam2" alt="Tower camera 2" style="width:50%;border-radius:8px;background:#eef0ec;aspect-ratio:4/3;object-fit:cover;">
+        </div>
+        <textarea id="ask-input" rows="2" placeholder="Ask about your garden — e.g. what needs attention today?" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:.92rem;padding:10px 12px;border:1.5px solid var(--divider);border-radius:10px;resize:vertical;"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+          <button onclick="Thryve_ask()" id="ask-btn" style="font-family:Jost,sans-serif;font-weight:700;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;background:#78b39c;color:#fff;border:2px solid #54ac9b;border-radius:10px;padding:11px 20px;cursor:pointer;">Ask</button>
+          <button onclick="Thryve_refreshCams()" title="Refresh camera images" style="font-family:Jost,sans-serif;font-weight:700;font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;background:transparent;color:var(--muted);border:1.5px solid var(--divider);border-radius:8px;padding:9px 12px;cursor:pointer;">&#8635; Cameras</button>
+          <span id="ask-status" style="font-size:.72rem;color:var(--muted);"></span>
+        </div>
+        <div id="ask-answer" style="margin-top:14px;font-size:.92rem;line-height:1.55;white-space:pre-wrap;color:var(--ink);"></div>
+      </div>
       <div id="log-setup" style="display:none;background:#fff;border:1.5px solid var(--divider);border-radius:12px;padding:16px;margin-bottom:18px;">
         <label style="display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;">GitHub token (gist scope) — stored only on this device</label>
         <input id="log-token-input" type="password" placeholder="ghp_…" autocomplete="off" style="width:100%;font-family:inherit;font-size:.9rem;padding:9px 11px;border:1.5px solid var(--divider);border-radius:8px;box-sizing:border-box;">
+        <label style="display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:14px 0 6px;">Anthropic API key (for the Ask box) — stored only on this device</label>
+        <input id="log-claude-input" type="password" placeholder="sk-ant-…" autocomplete="off" style="width:100%;font-family:inherit;font-size:.9rem;padding:9px 11px;border:1.5px solid var(--divider);border-radius:8px;box-sizing:border-box;">
         <div style="display:flex;gap:8px;margin-top:12px;">
           <button onclick="Thryve_saveLogToken()" style="font-family:Jost,sans-serif;font-weight:700;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;background:#78b39c;color:#fff;border:2px solid #54ac9b;border-radius:10px;padding:11px 16px;cursor:pointer;">Connect</button>
           <button onclick="Thryve_logSettings(false)" style="font-family:Jost,sans-serif;font-weight:700;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;background:transparent;color:var(--muted);border:2px solid var(--divider);border-radius:10px;padding:11px 16px;cursor:pointer;">Cancel</button>
@@ -8912,7 +8927,51 @@ window.__bdRender = render;
 (function(){
   var GROW_GIST_ID = 'c921e53025a673168a67399534629159';
   var TOKEN_KEY = 'thryve_gist_token';
+  var CLAUDE_KEY = 'thryve_claude_key';
+  var SERIAL = '1b7ab80f967f708d0fc31b088d218ff8';
+  var CAM1 = 'https://gardyniotblob.blob.core.windows.net/iot-camera-image/camera1_'+SERIAL+'.jpg';
+  var CAM2 = 'https://gardyniotblob.blob.core.windows.net/iot-camera-image/camera2_'+SERIAL+'.jpg';
   function tok(){ try { return localStorage.getItem(TOKEN_KEY) || ''; } catch(e){ return ''; } }
+  function ckey(){ try { return localStorage.getItem(CLAUDE_KEY) || ''; } catch(e){ return ''; } }
+  window.Thryve_refreshCams = function(){
+    var b='?v='+Date.now();
+    var a=document.getElementById('ask-cam1'), c=document.getElementById('ask-cam2');
+    if(a) a.src=CAM1+b; if(c) c.src=CAM2+b;
+  };
+  window.Thryve_ask = function(){
+    var q=((document.getElementById('ask-input')||{}).value||'').trim();
+    var ans=document.getElementById('ask-answer'), st=document.getElementById('ask-status'), btn=document.getElementById('ask-btn');
+    if(!q){ if(st) st.textContent='Type a question first'; return; }
+    if(!ckey()){ if(st) st.textContent='Add your Anthropic key in settings ⚙'; Thryve_logSettings(true); return; }
+    if(st) st.textContent='Thinking…'; if(btn) btn.disabled=true; if(ans) ans.textContent='';
+    var gt=tok();
+    var ctxP = gt ? fetch('https://api.github.com/gists/'+GROW_GIST_ID,{headers:{Authorization:'Bearer '+gt,Accept:'application/vnd.github+json'}}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}) : Promise.resolve(null);
+    ctxP.then(function(g){
+      var ctx='';
+      if(g&&g.files){
+        var s=(g.files['garden_state.json']||{}).content||'';
+        var lg=(g.files['GROW_LOG.md']||{}).content||'';
+        ctx='PLANTING STATE (garden_state.json):\n'+s.slice(0,4000)+'\n\nRECENT GROW LOG:\n'+lg.slice(0,1500);
+      }
+      var body={
+        model:'claude-opus-4-8', max_tokens:1024,
+        system:"You are a practical hydroponic grow assistant for a Gardyn tower. You are given the two live camera images of the tower plus the owner's planting state and recent check-in log. Look at the images, cross-reference the planting state, and answer concretely and briefly. Reference plants by name and tower position when you can. Prefer clear next actions over description.",
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'url',url:CAM1}},
+          {type:'image',source:{type:'url',url:CAM2}},
+          {type:'text',text:q+'\n\n---\n'+ctx}
+        ]}]
+      };
+      return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':ckey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)});
+    }).then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
+      .then(function(o){
+        if(btn) btn.disabled=false;
+        if(!o.ok){ if(st) st.textContent='Error'; if(ans) ans.textContent=(o.j&&o.j.error&&o.j.error.message)||'Request failed'; return; }
+        var txt=(o.j.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('\n');
+        if(ans) ans.textContent=txt||'(no answer)';
+        if(st) st.textContent='';
+      }).catch(function(e){ if(btn) btn.disabled=false; if(st) st.textContent='Error: '+e.message; });
+  };
   function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function mdToHtml(md){
     var out=[], lines=String(md).split('\n');
@@ -8930,11 +8989,16 @@ window.__bdRender = render;
   window.Thryve_logSettings = function(show){
     var s=document.getElementById('log-setup'); if(!s) return;
     s.style.display = (show===false) ? 'none' : (s.style.display==='none' ? 'block' : 'none');
-    if (s.style.display!=='none'){ var i=document.getElementById('log-token-input'); if(i) i.value=tok(); }
+    if (s.style.display!=='none'){
+      var i=document.getElementById('log-token-input'); if(i) i.value=tok();
+      var k=document.getElementById('log-claude-input'); if(k) k.value=ckey();
+    }
   };
   window.Thryve_saveLogToken = function(){
     var i=document.getElementById('log-token-input');
     if (i){ try { localStorage.setItem(TOKEN_KEY, i.value.trim()); } catch(e){} }
+    var k=document.getElementById('log-claude-input');
+    if (k){ try { localStorage.setItem(CLAUDE_KEY, k.value.trim()); } catch(e){} }
     var s=document.getElementById('log-setup'); if(s) s.style.display='none';
     Thryve_renderLog();
   };
@@ -8955,7 +9019,7 @@ window.__bdRender = render;
       .catch(function(e){ if(status) status.textContent='Error: '+e.message; if(String(e.message).indexOf('token')>=0) Thryve_logSettings(true); });
   };
   var _st = window.switchTab;
-  window.switchTab = function(id, btn){ if(_st) _st(id, btn); if(id==='log') Thryve_renderLog(); };
+  window.switchTab = function(id, btn){ if(_st) _st(id, btn); if(id==='log'){ Thryve_renderLog(); Thryve_refreshCams(); } };
 })();
 </script>
 </body>
