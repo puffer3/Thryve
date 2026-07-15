@@ -5048,6 +5048,7 @@
         <button class="layout-btn danger" id="clear-btn" onclick="clearLayout()">Clear</button>
         <button class="layout-btn" onclick="triggerLoadLayout()">Load</button>
         <button class="layout-btn primary" onclick="saveLayout()">Save</button>
+      <button class="layout-btn" onclick="Thryve_cloudSave(this)" title="Sync this layout to the grow assistant">☁ Save to cloud</button>
         <button class="layout-btn" id="add-sprout-tray" onclick="window.__sproutAddTray&&window.__sproutAddTray()">+ Sprout Tray</button>
         <input type="file" id="load-layout-file" accept=".json,.txt" style="display:none" onchange="loadLayout(this)">
       </div>
@@ -6843,6 +6844,7 @@
       <button class="layout-btn lock lock-toggle" onclick="toggleLock()"><svg class="lock-ico"><use href="#ic-unlock" class="lock-use"></use></svg><span class="lock-txt">Unlocked</span></button>
       <button class="layout-btn" onclick="triggerLoadLayout()">Load</button>
       <button class="layout-btn primary" onclick="saveLayout()">Save</button>
+      <button class="layout-btn" onclick="Thryve_cloudSave(this)" title="Sync this layout to the grow assistant">☁ Save to cloud</button>
     </div>
 
     <!-- Plant adding happens on the Tower page (pod dropdowns); the ledger is view/edit only. -->
@@ -8971,6 +8973,17 @@ window.__bdRender = render;
         if(ans) ans.textContent=txt||'(no answer)';
         if(st) st.textContent='';
       }).catch(function(e){ if(btn) btn.disabled=false; if(st) st.textContent='Error: '+e.message; });
+  };
+  window.Thryve_cloudSave = function(btn){
+    var t=tok();
+    if(!t){ alert('Add your GitHub gist token first (Log tab → ⚙).'); return; }
+    if(typeof getState!=='function'){ alert('State not ready yet.'); return; }
+    var orig = btn ? btn.textContent : null;
+    if(btn){ btn.textContent='Saving…'; btn.disabled=true; }
+    fetch('https://api.github.com/gists/'+GROW_GIST_ID,{method:'PATCH',headers:{Authorization:'Bearer '+t,Accept:'application/vnd.github+json','Content-Type':'application/json'},
+      body:JSON.stringify({files:{'thryve_state.json':{content:JSON.stringify(getState(),null,2)}}})})
+      .then(function(r){ if(btn){ btn.disabled=false; btn.textContent = r.ok ? '☁ Saved' : 'Failed'; setTimeout(function(){ if(btn) btn.textContent = orig||'☁ Save to cloud'; },2000); } })
+      .catch(function(e){ if(btn){ btn.disabled=false; btn.textContent='Failed'; setTimeout(function(){ if(btn) btn.textContent = orig||'☁ Save to cloud'; },2000); } });
   };
   function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function mdToHtml(md){
