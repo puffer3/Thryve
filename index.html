@@ -1010,6 +1010,10 @@
       <svg class="tab-icon-svg"><use href="#ic-info"></use></svg>
       <span class="tab-label" data-text="Guides">Guides</span>
     </button>
+    <button class="tab-btn" onclick="switchTab('log', this)">
+      <svg class="tab-icon-svg"><use href="#ic-tracker"></use></svg>
+      <span class="tab-label" data-text="Log">Log</span>
+    </button>
   </div>
 
 
@@ -5134,6 +5138,31 @@
   </div>
   <!-- END TODAY TAB -->
 
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- LOG TAB (grow log, synced from the Gist) -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="log" class="tab-panel">
+    <div style="max-width:720px;margin:0 auto;padding:8px 0 60px;">
+      <h2 style="font-family:Jost,sans-serif;font-weight:700;letter-spacing:.02em;margin:0 0 4px;">Grow Log</h2>
+      <p style="color:var(--muted);font-size:.82rem;margin:0 0 18px;">Automatic check-ins from your grow assistant, synced from the cloud every few hours.</p>
+      <div id="log-setup" style="display:none;background:#fff;border:1.5px solid var(--divider);border-radius:12px;padding:16px;margin-bottom:18px;">
+        <label style="display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;">GitHub token (gist scope) — stored only on this device</label>
+        <input id="log-token-input" type="password" placeholder="ghp_…" autocomplete="off" style="width:100%;font-family:inherit;font-size:.9rem;padding:9px 11px;border:1.5px solid var(--divider);border-radius:8px;box-sizing:border-box;">
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button onclick="Thryve_saveLogToken()" style="font-family:Jost,sans-serif;font-weight:700;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;background:#78b39c;color:#fff;border:2px solid #54ac9b;border-radius:10px;padding:11px 16px;cursor:pointer;">Connect</button>
+          <button onclick="Thryve_logSettings(false)" style="font-family:Jost,sans-serif;font-weight:700;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;background:transparent;color:var(--muted);border:2px solid var(--divider);border-radius:10px;padding:11px 16px;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <button onclick="Thryve_renderLog()" style="font-family:Jost,sans-serif;font-weight:700;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;background:transparent;color:var(--ink);border:1.5px solid var(--divider);border-radius:8px;padding:8px 14px;cursor:pointer;">Refresh</button>
+        <span id="log-status" style="font-size:.72rem;color:var(--muted);"></span>
+        <button onclick="Thryve_logSettings(true)" title="Sync settings" style="margin-left:auto;background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:1.05rem;line-height:1;">&#9881;</button>
+      </div>
+      <div id="log-content" style="font-size:.9rem;line-height:1.5;color:var(--ink);"></div>
+    </div>
+  </div>
+  <!-- END LOG TAB -->
+
 
   <!-- ═══════════════════════════════════════════ -->
   <!-- GENERAL TAB -->
@@ -8875,6 +8904,58 @@ window.__bdRender = render;
     '.spm-btn.ghost{background:transparent;color:var(--muted);border-color:var(--divider);}'+
     '.spm-btn span{font-weight:400;font-size:.6rem;}';
   document.head.appendChild(css);
+})();
+</script>
+
+<!-- Grow Log tab — reads the shared Gist. Self-contained; wraps switchTab, edits nothing above. -->
+<script>
+(function(){
+  var GROW_GIST_ID = 'c921e53025a673168a67399534629159';
+  var TOKEN_KEY = 'thryve_gist_token';
+  function tok(){ try { return localStorage.getItem(TOKEN_KEY) || ''; } catch(e){ return ''; } }
+  function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function mdToHtml(md){
+    var out=[], lines=String(md).split('\n');
+    for (var i=0;i<lines.length;i++){
+      var l=lines[i];
+      if (/^#\s+/.test(l)) continue;                 // top-level title — skip
+      if (/^##\s+/.test(l)){
+        out.push('<div style="font-family:Jost,sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#54ac9b;margin:22px 0 6px;">'+esc(l.replace(/^##\s+/,''))+'</div>');
+      } else if (l.trim()!==''){
+        out.push('<p style="margin:0 0 8px;">'+esc(l)+'</p>');
+      }
+    }
+    return out.join('') || '<p style="color:var(--muted)">No entries yet.</p>';
+  }
+  window.Thryve_logSettings = function(show){
+    var s=document.getElementById('log-setup'); if(!s) return;
+    s.style.display = (show===false) ? 'none' : (s.style.display==='none' ? 'block' : 'none');
+    if (s.style.display!=='none'){ var i=document.getElementById('log-token-input'); if(i) i.value=tok(); }
+  };
+  window.Thryve_saveLogToken = function(){
+    var i=document.getElementById('log-token-input');
+    if (i){ try { localStorage.setItem(TOKEN_KEY, i.value.trim()); } catch(e){} }
+    var s=document.getElementById('log-setup'); if(s) s.style.display='none';
+    Thryve_renderLog();
+  };
+  window.Thryve_renderLog = function(){
+    var content=document.getElementById('log-content'), status=document.getElementById('log-status');
+    if(!content) return;
+    if(!tok()){ content.innerHTML=''; if(status) status.textContent='Not connected'; Thryve_logSettings(true); return; }
+    if(status) status.textContent='Loading…';
+    fetch('https://api.github.com/gists/'+GROW_GIST_ID, {headers:{Authorization:'Bearer '+tok(),Accept:'application/vnd.github+json'}})
+      .then(function(r){ if(!r.ok) throw new Error(r.status===401?'bad token':('HTTP '+r.status)); return r.json(); })
+      .then(function(g){
+        var files=g.files||{};
+        var log=(files['GROW_LOG.md']||{}).content||'';
+        var upd=''; try { upd=JSON.parse((files['garden_state.json']||{}).content||'{}').updated_at||''; } catch(e){}
+        content.innerHTML=mdToHtml(log);
+        if(status) status.textContent = upd ? ('State updated '+upd.replace('T',' ')) : 'Loaded';
+      })
+      .catch(function(e){ if(status) status.textContent='Error: '+e.message; if(String(e.message).indexOf('token')>=0) Thryve_logSettings(true); });
+  };
+  var _st = window.switchTab;
+  window.switchTab = function(id, btn){ if(_st) _st(id, btn); if(id==='log') Thryve_renderLog(); };
 })();
 </script>
 </body>
