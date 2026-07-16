@@ -5169,6 +5169,7 @@
           <button onclick="Thryve_logSettings(false)" style="font-family:Jost,sans-serif;font-weight:700;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;background:transparent;color:var(--muted);border:2px solid var(--divider);border-radius:10px;padding:11px 16px;cursor:pointer;">Cancel</button>
         </div>
       </div>
+      <div id="log-todos" style="margin-bottom:18px;"></div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
         <button onclick="Thryve_renderLog()" style="font-family:Jost,sans-serif;font-weight:700;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;background:transparent;color:var(--ink);border:1.5px solid var(--divider);border-radius:8px;padding:8px 14px;cursor:pointer;">Refresh</button>
         <span id="log-status" style="font-size:.72rem;color:var(--muted);"></span>
@@ -9025,11 +9026,40 @@ window.__bdRender = render;
       .then(function(g){
         var files=g.files||{};
         var log=(files['GROW_LOG.md']||{}).content||'';
-        var upd=''; try { upd=JSON.parse((files['garden_state.json']||{}).content||'{}').updated_at||''; } catch(e){}
+        var st={}; try { st=JSON.parse((files['garden_state.json']||{}).content||'{}'); } catch(e){}
+        Thryve_renderTodos(st.todos||[]);
         content.innerHTML=mdToHtml(log);
-        if(status) status.textContent = upd ? ('State updated '+upd.replace('T',' ')) : 'Loaded';
+        if(status) status.textContent = st.updated_at ? ('Updated '+String(st.updated_at).replace('T',' ')) : 'Loaded';
       })
       .catch(function(e){ if(status) status.textContent='Error: '+e.message; if(String(e.message).indexOf('token')>=0) Thryve_logSettings(true); });
+  };
+  window.Thryve_renderTodos = function(todos){
+    var el=document.getElementById('log-todos'); if(!el) return;
+    todos = todos || [];
+    var open=todos.filter(function(t){return !t.done;}), done=todos.filter(function(t){return t.done;});
+    if(!todos.length){ el.innerHTML=''; return; }
+    var col={urgent:'#c0563a',soon:'#b08900',whenever:'var(--muted)'};
+    var h='<div style="font-family:Jost,sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#54ac9b;margin:0 0 8px;">To-dos ('+open.length+' open)</div>';
+    open.forEach(function(t){
+      h+='<label style="display:flex;gap:10px;align-items:flex-start;padding:9px 2px;border-bottom:1px solid var(--divider);cursor:pointer;">'
+        +'<input type="checkbox" onchange="Thryve_toggleTodo(\''+t.id+'\',this)" style="margin-top:2px;width:18px;height:18px;flex:none;cursor:pointer;">'
+        +'<span><b style="font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:'+(col[t.priority]||'var(--muted)')+';">'+esc(t.priority||'')+'</b> '+esc(t.text)+'</span></label>';
+    });
+    if(done.length) h+='<div style="font-size:.72rem;color:var(--muted);margin-top:10px;">✓ '+done.length+' done</div>';
+    el.innerHTML=h;
+  };
+  window.Thryve_toggleTodo = function(id, box){
+    if(box) box.disabled=true;
+    fetch('https://api.github.com/gists/'+GROW_GIST_ID,{headers:{Authorization:'Bearer '+tok(),Accept:'application/vnd.github+json'}})
+      .then(function(r){ return r.json(); })
+      .then(function(g){
+        var st=JSON.parse((g.files['garden_state.json']||{}).content||'{}');
+        (st.todos||[]).forEach(function(t){ if(t.id===id){ t.done=true; t.doneAt=new Date().toISOString().slice(0,10); } });
+        st.updated_at=new Date().toISOString().slice(0,19);
+        return fetch('https://api.github.com/gists/'+GROW_GIST_ID,{method:'PATCH',headers:{Authorization:'Bearer '+tok(),Accept:'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify({files:{'garden_state.json':{content:JSON.stringify(st,null,2)}}})});
+      })
+      .then(function(){ Thryve_renderLog(); })
+      .catch(function(e){ if(box){ box.disabled=false; box.checked=false; } alert('Could not save: '+e.message); });
   };
   var _st = window.switchTab;
   window.switchTab = function(id, btn){ if(_st) _st(id, btn); if(id==='log'){ Thryve_renderLog(); Thryve_refreshCams(); } };
